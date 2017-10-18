@@ -25,16 +25,13 @@ class ConsoleGame(Game):
         super().player_turn(player)
 
     def result(self):
-        players = sorted(self.players, key=lambda x: x.money, reverse=True)
+        players = tuple(super().result())
         print("The classification:\n{}".format(
-            '\n'.join(
-                ("{} - {}: {}{}".format(
-                    i,
-                    p.name,
-                    p.money,
-                    " WIN" if i <= 1 else ""
-                )
-                    for i, p in enumerate(players, 1))
+            '\n'.join(("{position:2} - {player.name}: {player.total}${is_win}".format(
+                    position=i,
+                    player=p,
+                    is_win=" WIN" if i <= 1 else ""
+                ) for i, p in enumerate(players, 1))
             )
         )
         )

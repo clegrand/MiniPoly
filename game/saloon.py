@@ -13,6 +13,9 @@ class Plan(list, metaclass=MetaPlan):
         self._start = kwargs.get('start_index', self._start_case())
         self.adds_player(players)
 
+    def player_position(self, player):
+        return self[self._players_pos[player]]
+
     def move(self, player, dist):
         for _ in range(dist):
             yield self._forward(player, 1)
@@ -96,4 +99,4 @@ class Game:
             self.end = True
 
     def result(self):
-        raise NotImplementedError
+        return sorted(self.players, key=lambda p: p.total, reverse=True)

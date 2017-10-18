@@ -1,7 +1,6 @@
 import argparse
 import logging
 
-from game.kitchen import Player
 from console import ConsoleGame
 
 

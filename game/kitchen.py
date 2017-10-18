@@ -14,69 +14,52 @@ class Player:
         self.cell_districts()
         return bool(self)
 
-    def pay(self, to_pay, fatal=True):
-        if isinstance(to_pay, District):
-            price = to_pay.price
-            if to_pay.owner is not None:
-                to_pay.owner.money += price
-        elif isinstance(to_pay, CashCase):
-            price = to_pay.gain
-        else:
-            price = to_pay
-        self._get_money(to_pay)
+    def pay(self, price, to_pay=None, fatal=True):
+        self._get_money(price, to_pay)
         if not fatal:
             price = min(self.money, price)
         self.money -= price
         return price
 
-    def buy(self, to_buy):
-        if self._validate(to_buy):
-            self.pay(to_buy)
+    def buy(self, price, to_buy=None):
+        if self._validate(price, to_buy):
             if isinstance(to_buy, District):
                 self.districts.add(to_buy)
+            return price
+        return None
+
+    def won(self, money, source=None):
+        self.money += money
 
     def cell_districts(self, target=None):
-        for case in self._select_districts(kind='cell' if target is None else 'give', target=target):
-            self.money += case.price
-            self.districts.remove(case)
+        cases = self._select_districts()
+        for case in cases:
+            case.cell()
+        return cases
 
     # noinspection PyMethodMayBeStatic
     def launch_dice(self, dice_range):
         return random.randint(*dice_range)
 
-    def _get_money(self, target=None):
-        if target is None:
-            price = 0
-            target = None
-        elif isinstance(target, District):
-            price = target.price
-            target = target.owner
-        elif isinstance(target, CashCase):
-            price = target.gain
-            target = None
-        else:
-            price = target
-            target = None
+    def _get_money(self, price=0, target=None):
+        last_money = self.money
         while self.money < price:
             if not self.districts:
                 break
             self.cell_districts(target)
-        return self.money
+        return self.money - last_money
 
-    def _validate(self, to_validate):
-        if isinstance(to_validate, District):
-            price = to_validate.price
-        else:
-            price = to_validate
-        if price >= self._total_cost():
-            return False
-        return True
+    def _validate(self, price, to_validate=None):
+        if price <= self.total:
+            return True
+        return False
 
-    def _select_districts(self, kind=None, **kwargs):
+    def _select_districts(self):
         raise NotImplementedError
 
-    def _total_cost(self):
-        return sum((d.price for d in self.districts), self.money)
+    @property
+    def total(self):
+        return self.money + self.districts.total
 
     def __str__(self):
         base_str = "{0.name} with {0.money}$".format(self)
@@ -128,6 +111,10 @@ class DistrictManager(set):
             self._del_owner(element)
         super().clear()
 
+    @property
+    def total(self):
+        return sum((d.price for d in self))
+
     def _add_owner(self, element):
         if isinstance(element.owner, Player):
             element.owner.districts.remove(element)
@@ -172,15 +159,14 @@ class CashCase(Case):
         self._gain(player)
 
     def _give_cash(self, player):
-        player.money += self.cash
+        player.won(self.cash, source=self)
 
     def _pick_cash(self, player):
-        player.money += self.cash
+        self._give_cash(player)
         self.cash = 0
 
     def _gain(self, player):
-        player.pay(self, fatal=False)
-        self.cash += self.gain
+        self.cash += player.pay(self.gain, to_pay=self, fatal=False)
 
     def __str__(self):
         return "Gain: {0.cash}$ ({0.gain}$)".format(self)
@@ -215,9 +201,21 @@ class District(Case):
 
     def __call__(self, player):
         if self.owner is None:
-            player.buy(self)
+            self._buy(player)
         elif player is not self.owner:
-            player.pay(self)
+            self._pay(player)
+
+    def cell(self):
+        self.owner.won(self.price, source=self)
+        self.owner.districts.remove(self)
+
+    def _pay(self, player):
+        self.owner.won(player.pay(self.price, to_pay=self.owner), source=player)
+
+    def _buy(self, player):
+        money = player.buy(self.price, to_buy=self)
+        if money is not None:
+            player.pay(money, to_pay=self)
 
     def __str__(self):
         base_str = "{0.name}: {0.price}$".format(self)
