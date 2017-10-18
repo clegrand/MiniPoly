@@ -3,7 +3,7 @@ DEFAULT_NEXT_PROMPT = "V"
 
 
 def _put_select(elements, message="Select"):
-    print("{0[message]}:".format(locals()), *("{} - {}".format(i, e) for i, e in enumerate(elements)), sep='\n')
+    print("{0[message]}:".format(locals()), *("{} - {}".format(i, e) for i, e in enumerate(elements, 1)), sep='\n')
 
 
 def put_message(message=None):
@@ -35,7 +35,7 @@ def select_one(elements, message="Select one", empty=False):
             return None
         else:
             try:
-                return ol[int(i)]
+                return ol[int(i) - 1]
             except (IndexError, ValueError):
                 pass
 
@@ -59,7 +59,7 @@ def select(elements, message="Select one or more", empty=True):
             break
         else:
             try:
-                nl.append(ol.pop(int(i)))
+                nl.append(ol.pop(int(i) - 1))
             except (IndexError, ValueError):
                 pass
             else:
