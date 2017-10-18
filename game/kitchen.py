@@ -64,7 +64,7 @@ class Player:
     def __str__(self):
         base_str = "{0.name} with {0.money}$".format(self)
         if self.districts:
-            base_str = ' '.join((base_str, "and {}".format(self.districts)))
+            base_str = ' '.join((base_str, "and {0!r} for {0.total}$".format(self.districts)))
         return base_str
 
     def __repr__(self):
