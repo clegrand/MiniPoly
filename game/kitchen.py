@@ -1,6 +1,9 @@
 import random
+from collections import namedtuple
 
 from itertools import chain
+
+from attic import IMPROVE_POINT, IMPROVE_PRICE_COEFFICIENT, IMPROVE_COEFFICIENT, DICE_BONUS
 
 
 class Player:
@@ -10,8 +13,7 @@ class Player:
         self.districts = DistrictManager(districts or tuple(), owner=self)
 
     def __call__(self):
-        # TODO: Can improve districts
-        self.cell_districts()
+        self.manage_districts()
         return bool(self)
 
     def pay(self, price, to_pay=None, fatal=True):
@@ -31,6 +33,17 @@ class Player:
     def won(self, money, source=None):
         self.money += money
 
+    def manage_districts(self):
+        improve_point = IMPROVE_POINT
+        while improve_point:
+            districts = list(self._select_districts(self.districts.improvable()))
+            if not districts:
+                break
+            for district in districts:
+                if improve_point:
+                    district.improve()
+                    improve_point -= 1
+
     def cell_districts(self, target=None):
         cases = self._select_districts()
         for case in cases:
@@ -39,7 +52,10 @@ class Player:
 
     # noinspection PyMethodMayBeStatic
     def launch_dice(self, dice_range):
-        return random.randint(*dice_range)
+        result = random.randint(*dice_range)
+        if result == max(*dice_range):
+            self.won(DICE_BONUS)
+        return result
 
     def _get_money(self, price=0, target=None):
         last_money = self.money
@@ -54,7 +70,7 @@ class Player:
             return True
         return False
 
-    def _select_districts(self):
+    def _select_districts(self, districts=None):
         raise NotImplementedError
 
     @property
@@ -111,12 +127,15 @@ class DistrictManager(set):
             self._del_owner(element)
         super().clear()
 
+    def improvable(self):
+        return filter(lambda d: d.current_improve, self)
+
     @property
     def total(self):
         return sum((d.price for d in self))
 
     def _add_owner(self, element):
-        if isinstance(element.owner, Player):
+        if isinstance(element.owner, Player) and element.owner is not self.owner:
             element.owner.districts.remove(element)
         element.owner = self.owner
 
@@ -193,10 +212,17 @@ class StartCase(CashCase):
 
 
 class District(Case):
+    ImproveCheck = namedtuple('ImproveCheck', ('pay', 'next'))
 
-    def __init__(self, name, price, owner=None):
+    def __init__(self, name, price, improve_step=None, owner=None):
         super().__init__(name)
         self.price = price
+        self.improve_state = iter(improve_step if improve_step is not None else self._next_improve())
+        self.current_improve = None
+        self._shift_improve()
+        if price is None:
+            self.price = self.current_improve[0]
+            self._shift_improve()
         self.owner = owner
 
     def __call__(self, player):
@@ -204,6 +230,15 @@ class District(Case):
             self._buy(player)
         elif player is not self.owner:
             self._pay(player)
+
+    def improve(self):
+        if self.current_improve is not None:
+            if self.owner.buy(self.current_improve.pay, to_buy=self):
+                self.owner.pay(self.current_improve.pay, to_pay=self)
+                self.price = self.current_improve.next
+                self._shift_improve()
+            return True
+        return False
 
     def cell(self):
         self.owner.won(self.price, source=self)
@@ -216,6 +251,21 @@ class District(Case):
         money = player.buy(self.price, to_buy=self)
         if money is not None:
             player.pay(money, to_pay=self)
+
+    def _next_improve(self):
+        while True:
+            yield self.price * IMPROVE_PRICE_COEFFICIENT, self.price * IMPROVE_COEFFICIENT
+
+    def _shift_improve(self):
+        try:
+            self.current_improve = next(self.improve_state)
+            self.current_improve = self.ImproveCheck(
+                pay=round(self.current_improve[0], 2),
+                next=round(self.current_improve[1], 2)
+            )
+        except StopIteration:
+            self.current_improve = None
+        return self.current_improve
 
     def __str__(self):
         base_str = "{0.name}: {0.price}$".format(self)

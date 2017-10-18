@@ -19,13 +19,21 @@ class ConsolePlayer(Player):
             put_message("You need to pay {price}$ for {target}".format(price=price, target=to_pay))
         return super().pay(price, to_pay, fatal)
 
+    def launch_dice(self, dice_range):
+        put_message("Ready to launch your dice?")
+        result = super().launch_dice(dice_range)
+        print("You've made a [{}]".format(result))
+        return result
+
     def _validate(self, price, to_validate=None):
         if super()._validate(price, to_validate):
             if isinstance(to_validate, District):
-                return validate("Do you want to buy '{0.name}' for {0.price}$ ?".format(to_validate))
+                if to_validate.owner is self:
+                    return validate("Do you want to improve '{1.name} for {0}$ ?".format(price, to_validate))
+                return validate("Do you want to buy '{1.name}' for {0}$ ?".format(price, to_validate))
             return validate()
         put_message("You don't have enough cash for buy {} (missing {}$)".format(to_validate, price - self.total))
         return False
 
-    def _select_districts(self, kind=None, **kwargs):
-        return select(self.districts)
+    def _select_districts(self, districts=None):
+        return select(districts if districts is not None else self.districts)
