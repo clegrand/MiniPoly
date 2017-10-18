@@ -1,11 +1,14 @@
 import argparse
 import logging
 
+from game.saloon import Game
 from console import ConsoleGame
 
 
 def get_args(args=None):
     parse = argparse.ArgumentParser()
+    parse.add_argument('-m', '--game-mode', metavar='MODE', default=Game.MODES[0], choices=Game.MODES,
+                       help="select game mode")
     parse.add_argument('-d', '--debug', action='store_true',
                        help="increase debug mode")
     parsed = parse.parse_args(args)

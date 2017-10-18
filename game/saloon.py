@@ -59,10 +59,16 @@ class Plan(list, metaclass=MetaPlan):
 
 
 class Game:
+    MODES = (
+        'normal',
+        'survival',
+        'oneshot'
+    )
 
-    def __init__(self, players=None, plan=None, **kwargs):
+    def __init__(self, players=None, plan=None, mode='oneshot', **kwargs):
         self.players = players or []
         self.plan = plan
+        self.mode = mode if mode in self.MODES else self.MODES[0]
         self.dice_range = kwargs.get('dice_range', DICE_RANGE)
         self.end = False
 
@@ -76,7 +82,8 @@ class Game:
                 player.money = players_money
 
     def __call__(self):
-        logging.debug("Players: %s", ', '.join(map(str, self.players)))
+        logging.debug("Mode selected: %s", self.mode)
+        logging.debug("Players: %s", ', '.join(map(repr, self.players)))
         logging.info("Map: %s", self.plan)
         while not self.end:
             self.turn()
@@ -85,8 +92,10 @@ class Game:
     def turn(self):
         for player in self.players:
             self.player_turn(player)
-            if self.end:
+            if self.mode == ('normal', 'oneshot') and self.end:
                 break
+        if self.mode == 'survival' and not any(self.players):
+            self.end = True
 
     def player_turn(self, player):
         fwd = player.launch_dice(self.dice_range)
