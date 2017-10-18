@@ -43,8 +43,10 @@ def select_one(elements, message="Select one", empty=False):
 def select(elements, message="Select one or more", empty=True):
     ol = list(elements)
     if not ol:
+        if not empty:
+            raise IndexError("List of selection is empty")
         return []
-    _put_select(elements, message=message)
+    _put_select(ol, message=message)
     nl = []
     while True:
         try:
@@ -63,6 +65,8 @@ def select(elements, message="Select one or more", empty=True):
             except (IndexError, ValueError):
                 pass
             else:
+                if not ol:
+                    break
                 _put_select(ol, message=message)
     return nl
 
