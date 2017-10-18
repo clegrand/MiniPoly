@@ -63,7 +63,7 @@ def select(elements, message="Select one or more", empty=True):
             except (IndexError, ValueError):
                 pass
             else:
-                _put_select(elements, message=message)
+                _put_select(ol, message=message)
     return nl
 
 

@@ -39,7 +39,7 @@ class Plan(list, metaclass=MetaPlan):
 
     def _start_case(self):
         for i, e in enumerate(self):
-            if isinstance(e, StartCase):
+            if isinstance(e['case'], StartCase):
                 return i
         return 0
 

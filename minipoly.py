@@ -21,7 +21,7 @@ def get_args(args=None):
 if __name__ == '__main__':
     i = 1
     ps = []
-    get_args()
-    gm = ConsoleGame(ps)
+    args = get_args()
+    gm = ConsoleGame(ps, mode=args.game_mode)
     gm.prepare()
     gm()
