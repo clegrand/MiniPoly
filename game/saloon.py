@@ -113,7 +113,7 @@ class Game:
     @property
     def end(self):
         if not self._end:
-            if self.mode in ('normal', 'one-shot') and all(self.players)\
+            if self.mode in ('normal', 'one-shot') and not all(self.players)\
                     or self.mode == 'survival' and len(tuple(self._players_ready())) <= 1:
                 self._end = True
         return self._end
