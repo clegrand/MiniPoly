@@ -7,10 +7,11 @@ from attic import IMPROVE_POINT, IMPROVE_PRICE_COEFFICIENT, IMPROVE_COEFFICIENT,
 
 
 class Player:
-    def __init__(self, name, money=0, districts=None):
+    def __init__(self, name, money=0, districts=None, immunize=False):
         self.name = name
-        self.money = money
+        self._money = money
         self.districts = DistrictManager(districts or tuple(), owner=self)
+        self.immunize = immunize
 
     def __call__(self):
         self.manage_districts()
@@ -56,6 +57,14 @@ class Player:
         if result == max(*dice_range):
             self.won(DICE_BONUS)
         return result
+
+    @property
+    def money(self):
+        return self._money
+
+    @money.setter
+    def money(self, money):
+        self._money = round(money, 2)
 
     def _get_money(self, price=0, target=None):
         last_money = self.money
@@ -200,9 +209,11 @@ class StartCase(CashCase):
 
     def __call__(self, player):
         self._give_cash(player)
+        player.immunize = False
 
     def cross(self, player):
         self._give_cash(player)
+        player.immunize = False
 
     def __str__(self):
         return "Start: {0.cash}$".format(self)
@@ -228,7 +239,7 @@ class District(Case):
     def __call__(self, player):
         if self.owner is None:
             self._buy(player)
-        elif player is not self.owner:
+        elif player is not self.owner and not player.immunize:
             self._pay(player)
 
     def improve(self):

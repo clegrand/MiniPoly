@@ -6,7 +6,6 @@ from attic import DICE_RANGE, PLAYERS_CASH
 
 
 class Plan(list, metaclass=MetaPlan):
-
     def __init__(self, *args, players=tuple(), players_pos=None, **kwargs):
         super(Plan, self).__init__(*args)
         self._players_pos = players_pos or {}
@@ -62,24 +61,29 @@ class Game:
     MODES = (
         'normal',
         'survival',
-        'oneshot'
+        'one-shot'
     )
 
-    def __init__(self, players=None, plan=None, mode='oneshot', **kwargs):
+    def __init__(self, players=None, plan=None, mode=MODES[0], **kwargs):
         self.players = players or []
         self.plan = plan
         self.mode = mode if mode in self.MODES else self.MODES[0]
         self.dice_range = kwargs.get('dice_range', DICE_RANGE)
-        self.end = False
+        self._end = False
 
     def prepare(self, **kwargs):
         if not self.plan:
             kwargs.setdefault('players', self.players)
             self.plan = Plan.generate(**kwargs)
+        immunize = self.mode in ('normal', 'survival')
         if any((p.money <= 0 for p in self.players)):
             players_money = kwargs.get('players_cash', PLAYERS_CASH)
             for player in self.players:
                 player.money = players_money
+                player.immunize = immunize
+        elif immunize:
+            for player in self.players:
+                player.immunize = immunize
 
     def __call__(self):
         logging.debug("Mode selected: %s", self.mode)
@@ -90,12 +94,10 @@ class Game:
         return self.result()
 
     def turn(self):
-        for player in self.players:
+        for player in self._players_ready():
             self.player_turn(player)
-            if self.mode == ('normal', 'oneshot') and self.end:
+            if self.end:
                 break
-        if self.mode == 'survival' and not any(self.players):
-            self.end = True
 
     def player_turn(self, player):
         fwd = player.launch_dice(self.dice_range)
@@ -104,8 +106,21 @@ class Game:
             case.cross(player)
         cases[-1](player)
         player()
-        if not player:
-            self.end = True
 
     def result(self):
         return sorted(self.players, key=lambda p: p.total, reverse=True)
+
+    @property
+    def end(self):
+        if not self._end:
+            if self.mode in ('normal', 'one-shot') and all(self.players)\
+                    or self.mode == 'survival' and len(tuple(self._players_ready())) <= 1:
+                self._end = True
+        return self._end
+
+    @end.setter
+    def end(self, state):
+        self._end = state
+
+    def _players_ready(self):
+        return filter(None, self.players)
